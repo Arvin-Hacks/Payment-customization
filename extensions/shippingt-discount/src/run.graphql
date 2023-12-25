@@ -1,0 +1,51 @@
+query RunInput ($productTags:[String!],$customerTags:[String!]) {  
+  
+  discountNode {
+    metafield(
+      namespace: "$app:shipping-discount-logistics"
+      key: "function-configuration-logistics"
+    ) {
+      value
+    }
+  }
+  cart {    
+    deliveryGroups{
+      cartLines{
+        quantity
+        merchandise {
+        __typename
+        ...on ProductVariant {
+          id
+          product{
+            title
+            vendor
+            hasAnyTag(tags: $productTags)
+            hasTags(tags: $productTags){
+              hasTag
+              tag
+            }
+          }
+        }
+      }
+      }
+    }
+    buyerIdentity{
+      customer{
+        displayName
+        id       
+        hasAnyTag(tags: $customerTags)
+        hasTags(tags: $customerTags){
+          hasTag
+          tag
+        } 
+      }
+    }
+      cost{
+         subtotalAmount {
+        currencyCode
+         amount 
+      }      
+    }       
+  }
+  
+}

@@ -1,0 +1,46 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  session_id  String    @id @default(auto()) @map("_id") @db.ObjectId
+  id          String    @unique
+  shop        String
+  state       String
+  isOnline    Boolean   @default(false)
+  scope       String?
+  expires     DateTime?
+  accessToken String
+  userId      BigInt?
+}
+
+model Shop {
+  id             String  @id @default(auto()) @map("_id") @db.ObjectId
+  shop           String  @unique
+  access_token   String?
+  phone          String?
+  name           String?
+  country_code   String?
+  country_name   String?
+  access_scope   String?
+  timestamp      String?
+  domain         String?
+  email          String?
+  customer_email String?
+  money_format   String?
+  currency       String?
+  timezone       String?
+  app_status     String?
+  zip            String?
+  city           String?
+  shop_owner     String?
+  DomainsPaths   String?
+}
