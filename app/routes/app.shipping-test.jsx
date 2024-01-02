@@ -485,7 +485,6 @@ export default function VolumeNew() {
                 selected={selectedCustomer}
                 onChange={updateCustomerselection}
 
-
               />
               <List >
                 {selectedCustomer ?
@@ -506,13 +505,11 @@ export default function VolumeNew() {
                 selected={selectedCustomertags}
                 onChange={updateCustomerTagselection}
 
-
               />
               <List gap="100">
                 {selectedCustomertags ?
                   selectedCustomertags.map((tags,index) => (
                     <Tag key={index}  onRemove={selectedCustomertags.splice(index,1)}>{tags}</Tag>
-
                   ))
                   : <List.Item>No customer tag Selected</List.Item>
                 }
@@ -653,6 +650,7 @@ export default function VolumeNew() {
               startDate: startDate.value,
               endDate: endDate.value,
             }}
+            
           />
         </Layout.Section>
         <Layout.Section>

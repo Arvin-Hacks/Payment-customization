@@ -78,6 +78,7 @@ export function run(input) {
 
   // if (targets.cost.subtotalAmount.amount > 5000 || configuration?.customerIds.includes(targets.buyerIdentity?.customer?.id )) {
   if (targets.cost.subtotalAmount.amount > subTotal) {
+    
     return {
       discountApplicationStrategy: DiscountApplicationStrategy.First,
       discounts: [

@@ -1,5 +1,5 @@
 import { json } from "@remix-run/node";
-import { Link, Outlet, useLoaderData, useNavigate, useRouteError } from "@remix-run/react";
+import { Link, Outlet, useLoaderData, useNavigate, useNavigation, useRouteError } from "@remix-run/react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
@@ -7,7 +7,7 @@ import { AppProvider as DiscountAppProvider } from '@shopify/discount-app-compon
 import { Provider as AppBridgeReactProvider } from "@shopify/app-bridge-react";
 
 import { authenticate } from "../shopify.server";
-import { Button, LegacyCard, Tabs } from "@shopify/polaris";
+import { Button, Frame, LegacyCard, Loading, Tabs } from "@shopify/polaris";
 import { useCallback, useState } from "react";
 // import Appcss from '../../app.css'
 
@@ -32,26 +32,21 @@ export default function App() {
   const { apiKey, host } = useLoaderData();
   const [config] = useState({ host, apiKey });
   const Navigate = useNavigate()
+  const Nav = useNavigation()
+  const isNav = Nav.state ===  'loading'
 
 
   const tabs = [
 
     {
-      id: 'Products',
-      content: <Link to={'/app'} style={{ textDecoration: "none", color: '#000000' }}>Products</Link>,
-      panelID: 'Products',
+      id: 'Dashboard',
+      content: <Link to={'/app'} style={{ textDecoration: "none", color: '#000000' }}>Dashboard</Link>,
+      panelID: 'Dashboard',
     },
     {
-      id: 'Hide payment',
-      content: <Link to={'/app/hidepayment'} style={{ textDecoration: "none", color: '#000000' }}>Hide payment</Link>,
-      panelID: 'Orders-1',
-      action: console.log('order')
-    },
-    {
-      id: 'Customers',
-      content: <Link to={'/app'} style={{ textDecoration: "none", color: '#000000' }}>Customers</Link>,
-      panelID: 'Customers-1',
-      // action:Navigate('/app/customer')
+      id: 'Add New Payment',
+      content: <Link to={'/app/hidepayment'} style={{ textDecoration: "none", color: '#000000' }}>Add New Payment</Link>,
+      panelID: 'Add New Payment',
     },
   ];
 
@@ -77,15 +72,17 @@ export default function App() {
             <Link to="/app/order">Orders page</Link>
             <Link to="/app/addCustomer"> Add Customer</Link> */}
           </ui-nav-menu>
+          <Frame>
+            {isNav ? <Loading /> : null}
+            <Tabs
+              // @ts-ignore
+              tabs={tabs} selected={selected} onSelect={handleTabChange}>
 
-          <Tabs
-            // @ts-ignore
-            tabs={tabs} selected={selected} onSelect={handleTabChange}>
+            </Tabs>
 
-          </Tabs>
+            <Outlet />
+          </Frame>
 
-
-          <Outlet />
         </DiscountAppProvider>
       </AppBridgeReactProvider>
     </AppProvider>

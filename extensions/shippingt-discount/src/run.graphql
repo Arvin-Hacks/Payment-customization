@@ -1,4 +1,4 @@
-query RunInput ($productTags:[String!],$customerTags:[String!]) {  
+query RunInput ($productTags:[String!],$customerTags:[String!],$collectionIds:[ID!]) {  
   
   discountNode {
     metafield(
@@ -23,7 +23,8 @@ query RunInput ($productTags:[String!],$customerTags:[String!]) {
             hasTags(tags: $productTags){
               hasTag
               tag
-            }
+            }            
+            inAnyCollection(ids: $collectionIds)
           }
         }
       }

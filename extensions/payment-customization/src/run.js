@@ -20,7 +20,7 @@ const NO_CHANGES = {
 */
 export function run(input) {
 
-const configuration=input.paymentCustomization.metafield?.value ?? "{}"
+  const configuration = JSON.parse(input.paymentCustomization.metafield?.value ?? "{}")
 
   const Config_paymentMethod_order = [
     {
@@ -40,7 +40,7 @@ const configuration=input.paymentCustomization.metafield?.value ?? "{}"
       name: "(for testing) Bogus Gateway"
     },
   ]
-  const  Config_paymentMethod_rename = [
+  const Config_paymentMethod_rename = [
     {
       rename: 'new Bank Deposit ',
       name: "Bank Deposit"
@@ -67,41 +67,48 @@ const configuration=input.paymentCustomization.metafield?.value ?? "{}"
     return NO_CHANGES;
   }
 
-  console.error('input ', JSON.stringify(input))
+  // console.error('input ', JSON.stringify(input))
 
-  console.error('config',configuration)
+  console.error('config', JSON.stringify(configuration))
 
   //Hide Payment method Option 
   const configurationhidedata = ["Gift card", "(for testing) Bogus Gateway"]
-  
-  const hideOption = input.paymentMethods.filter(paymentMethod => configurationhidedata.includes(paymentMethod.name)).map(({ id }) => ({ hide: { paymentMethodId: id } }));
+
+  const hidePaymentMethod = configuration?.hidePaymentmethod ?
+    input.paymentMethods.filter(paymentMethod => configuration?.hidePaymentmethod.includes(paymentMethod.name)).map(({ id }) => ({ hide: { paymentMethodId: id } })) : {}
 
 
   //Reorder Payment Option
-  const reorderPaymentMethods = GetReordereddata(input.paymentMethods, Config_paymentMethod_order)
+  const reorderPaymentMethods = GetReordereddata(input.paymentMethods, configuration.reorderPaymentmethod)
 
+  console.error('reorderPaymentMethods',JSON.stringify(reorderPaymentMethods))
 
   // Rename payment Method 
 
-  const renamedPaymentmethods= RenamePaymentMethod(input.paymentMethods,Config_paymentMethod_rename)
+  const renamedPaymentmethods = RenamePaymentMethod(input.paymentMethods, configuration.renamedPaymentmethod)
+  console.error('renamedPaymentmethods',renamedPaymentmethods)
 
-  const finaloperationsdata= reorderPaymentMethods.join()
+  const finaloperationsdata = renamedPaymentmethods.concat(hidePaymentMethod,reorderPaymentMethods)
+  
+  console.error('final data', JSON.stringify(finaloperationsdata))
+  console.error('test')
   // Find the payment method to hide
-  const hidePaymentMethod = input.paymentMethods
-    .find(method => method.name.includes("Cash on Delivery"));
+  // const hidePaymentMethod = input.paymentMethods
+  //   .find(method => method.name.includes("Cash on Delivery"));
 
-  if (!hidePaymentMethod) {
-    return NO_CHANGES;
-  }
+  // if (!hidePaymentMethod) {
+  //   return NO_CHANGES;
+  // } 
 
   // The @shopify/shopify_function package applies JSON.stringify() to your function result
   // and writes it to STDOUT
   return {
-    operations: [{
-      hide: {
-        paymentMethodId: hidePaymentMethod.id,
-      },
-    },
+    operations: finaloperationsdata
+    // [{
+    //   hide: {
+    //     paymentMethodId: "gid://shopify/PaymentCustomizationPaymentMethod/4"
+    //   },      
+    // },
 
       // {
       //   move: {
@@ -121,7 +128,7 @@ const configuration=input.paymentCustomization.metafield?.value ?? "{}"
       //     paymentMethodId: 'gid://shopify/PaymentCustomizationPaymentMethod/5'
       //   }
       // }
-    ]
+    // ]
   };
 };
 
@@ -129,40 +136,48 @@ const configuration=input.paymentCustomization.metafield?.value ?? "{}"
 
 
 const GetReordereddata = (input, config) => {
-  const paymentMap = input.reduce((acc, cur) => {
-    acc[cur.name] = { id: cur.id };
-    return acc;
-  }, {});
+  if (config) {
+    const paymentMap = input.reduce((acc, cur) => {
+      acc[cur.name] = { id: cur.id };
+      return acc;
+    }, {});
 
-  // Iterate through paymentMethod_order to get the associated id and index
+    // Iterate through paymentMethod_order to get the associated id and index
 
-  const result = config.map((method) => {
-    const paymentData = paymentMap[method.name];
-    return {
-      move: {
-        index: method.index,
-        paymentMethodId: paymentData ? paymentData.id : null,
-      }
-    };
-  });
+    const result = config.map((method) => {
+      const paymentData = paymentMap[method.name];
+      return {
+        move: {
+          index: method.index,
+          paymentMethodId: paymentData ? paymentData.id : null,
+        }
+      };
+    });
 
-  return result
+    return result
+  }
+  return []
 }
 
 
 const RenamePaymentMethod = (payment, config) => {
-  const renamedPayment = payment
-    .filter(({ name }) => config.some((data) => data.name === name))
-    .map(({ id, name }) => {
-      const renamedData = config.find((data) => data.name === name);
-      const renamedName = renamedData ? renamedData.rename : name;
+  if (config) {
+    const renamedPayment = payment
+      .filter(({ name }) => config.some((data) => data.name === name))
+      .map(({ id, name }) => {
+        const renamedData = config.find((data) => data.name === name);
+        const renamedName = renamedData ? renamedData.rename : name;
 
-      return {
-        id,
-        name: renamedName,
-      };
-    })
-  return renamedPayment
+        return {
+          rename: {
+            paymentMethodId: id,
+            name: renamedName,
+          }
+        };
+      })
+    return renamedPayment
+  }
+  return []
 }
 
 

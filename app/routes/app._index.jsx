@@ -1,283 +1,333 @@
-import { useEffect } from "react";
+
+import { useEffect, useState } from "react";
 import { json } from "@remix-run/node";
-import { useActionData, useNavigation, useSubmit } from "@remix-run/react";
-import {
-  Page,
-  Layout,
-  Text,
-  Card,
-  Button,
-  BlockStack,
-  Box,
-  List,
-  Link,
-  InlineStack,
-} from "@shopify/polaris";
-import { authenticate } from "../shopify.server";
-import DraggableList from "~/Component/DraggableComponent";
+import { useActionData, useLoaderData, useNavigate, useNavigation, useSubmit } from "@remix-run/react";
+import {Badge,
+   Button,
+   Banner, 
+   Card,
+    Frame, 
+    IndexTable, 
+    Layout, Page, 
+    Text, Pagination,
+     Tag,Toast, Modal,
+     Spinner, Popover,
+      ActionList,
+
+    useIndexResourceState } from "@shopify/polaris";
+import {EditMajor} from '@shopify/polaris-icons'    
+import { authenticate } from "~/shopify.server";
+import { DeleteCustomization, GetCustomizationListDb, UpdateStatus } from "~/api/db-api.server";
+import prisma from "~/db.server";
+import PopOverComponent from "~/Component/PopOverComponent";
+import { DeleteCustomizationPayment, UpdateCustomizationPaymentStatus } from "~/api/api.sever";
+// import { authenticate } from "~/shopify.server";
+
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
+  const { admin } = await authenticate.admin(request)
 
-  return null;
-};
+  try {
+    const data=await GetCustomizationListDb()
+    console.log('response',data)
+    // return data
+  } catch (error) {
+    console.log('GetCustomizationListDb loader error',error)
+    // return []
+  }
 
-export const action = async ({ request }) => {
-  const { admin } = await authenticate.admin(request);
-  const color = ["Red", "Orange", "Yellow", "Green"][
-    Math.floor(Math.random() * 4)
-  ];
-  const response = await admin.graphql(
-    `#graphql
-      mutation populateProduct($input: ProductInput!) {
-        productCreate(input: $input) {
-          product {
-            id
-            title
-            handle
-            status
-            variants(first: 10) {
-              edges {
-                node {
-                  id
-                  price
-                  barcode
-                  createdAt
-                }
+  const customPaymentData = await admin.graphql(
+    `#graphql    
+            query MyQuery {
+              paymentCustomizations(first: 20) {
+              nodes {
+              id
+              title
+              enabled
               }
             }
-          }
-        }
-      }`,
-    {
-      variables: {
-        input: {
-          title: `${color} Snowboard`,
-          variants: [{ price: Math.random() * 100 }],
-        },
-      },
-    }
-  );
-  const responseJson = await response.json();
+        }`
+  )
+  const data = await customPaymentData.json()
+  console.log("customPaymentData", data.data.paymentCustomizations.nodes)
 
   return json({
-    product: responseJson.data.productCreate.product,
-  });
+    nodes: data.data.paymentCustomizations.nodes,
+    totalCount: data.data.paymentCustomizations.nodes.length,
+  })
+
+
 };
 
+
+export const action = async ({ request }) => {
+  const { admin } = await authenticate.admin(request)
+  const bodydata = await request.formData();
+
+  const data=JSON.parse(bodydata.get("data"))
+  console.log('daata ',data)
+ 
+
+  switch (request.method) {
+    case "PUT":
+        console.log('PUT Data',data)
+        const res=[]
+        for (const id of data.ids) {
+
+          try {
+                const response=await UpdateStatus(id,data.status)
+                console.log('response',response)
+                if(response){
+                  const result=await UpdateCustomizationPaymentStatus(admin,id,data.status)
+                  console.log('response',result)
+                }else{ throw 'somthing went wrong with database'; }                
+          
+         } catch (error) {
+                console.log('error',error)
+                return json({status:false,msg:'Something went Wrong'})
+
+          }
+
+        }
+        return json({status:true,msg:'Status changed '})
+
+         console.log('ress',res)
+      break;
+    case "DELETE":
+      // return json({data:'error',status:false,msg:'Something went Wrong'})
+      const deleteResult=[]
+      for (const id of data.ids) {
+        try {                   
+          const deleteResponse=await DeleteCustomizationPayment(admin,id)
+          console.log('paymentCustomizationDelete',deleteResponse)
+  
+          // if(!deleteResponse?.data?.paymentCustomizationDelete?.deletedId){
+          //   return json({data:deleteResponse,status:true,msg:'Deleted...'})
+          // }else{
+          //   return json({data:deleteResponse,status:false,msg:'Something went Wrong'})
+          // }
+          if(!deleteResponse?.data?.paymentCustomizationDelete?.deletedId){
+            return json({data:deleteResponse,status:false,msg:'Something went Wrong'})
+          }
+          deleteResult.push(deleteResponse)
+          
+        } catch (error) {
+            console.log('errror..',error)
+            return json({data:error,status:false,msg:'Something went Wrong'})
+        }
+      } 
+            return json({data:deleteResult,status:true,msg:'Deleted...'})
+
+                   
+  
+    default:
+      break;
+  }
+
+  // setTimeout(() => {
+  //   console.log('afsdfsd')
+  // }, 3000);
+
+  // const bodydata=
+  // return true
+};
+
+
 export default function Index() {
-  const nav = useNavigation();
-  const actionData = useActionData();
-  const submit = useSubmit();
-  const isLoading =
-    ["loading", "submitting"].includes(nav.state) && nav.formMethod === "POST";
-  const productId = actionData?.product?.id.replace(
-    "gid://shopify/Product/",
-    ""
-  );
 
-  useEffect(() => {
-    if (productId) {
-      shopify.toast.show("Product created");
-    }
-  }, [productId]);
-  const generateProduct = () => submit({}, { replace: true, method: "POST" });
 
-  return (
-    <Page>
-      <ui-title-bar title="Remix app template">
-        <button variant="primary" onClick={generateProduct}>
-          Generate a product
-        </button>
-      </ui-title-bar>
-      <BlockStack gap="500">
-        <Layout>
+  const nav=useNavigation()
+  const Navigate = useNavigate()
+  const loaderData = useLoaderData()
+  const submit=useSubmit()
+  const actionData=useActionData()
+  const isLoading = nav.state === "submitting";
 
-          {/* <DraggableList /> */}
-          <Layout.Section>
-            <Card>
-              <BlockStack gap="500">
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    Congrats on creating a new Shopify app 🎉
-                  </Text>
-                  <Text variant="bodyMd" as="p">
-                    This embedded app template uses{" "}
-                    <Link
-                      url="https://shopify.dev/docs/apps/tools/app-bridge"
-                      target="_blank"
-                      removeUnderline
-                    >
-                      App Bridge
-                    </Link>{" "}
-                    interface examples like an{" "}
-                    <Link url="/app/additional" removeUnderline>
-                      additional page in the app nav
-                    </Link>
-                    , as well as an{" "}
-                    <Link
-                      url="https://shopify.dev/docs/api/admin-graphql"
-                      target="_blank"
-                      removeUnderline
-                    >
-                      Admin GraphQL
-                    </Link>{" "}
-                    mutation demo, to provide a starting point for app
-                    development.
-                  </Text>
-                </BlockStack>
-                <BlockStack gap="200">
-                  <Text as="h3" variant="headingMd">
-                    Get started with products
-                  </Text>
-                  <Text as="p" variant="bodyMd">
-                    Generate a product with GraphQL and get the JSON output for
-                    that product. Learn more about the{" "}
-                    <Link
-                      url="https://shopify.dev/docs/api/admin-graphql/latest/mutations/productCreate"
-                      target="_blank"
-                      removeUnderline
-                    >
-                      productCreate
-                    </Link>{" "}
-                    mutation in our API references.
-                  </Text>
-                </BlockStack>
-                <InlineStack gap="300">
-                  <Button loading={isLoading} onClick={generateProduct}>
-                    Generate a product
-                  </Button>
-                  {actionData?.product && (
-                    <Button
-                      url={`shopify:admin/products/${productId}`}
-                      target="_blank"
-                      variant="plain"
-                    >
-                      View product
-                    </Button>
-                  )}
-                </InlineStack>
-                {actionData?.product && (
-                  <Box
-                    padding="400"
-                    background="bg-surface-active"
-                    borderWidth="025"
-                    borderRadius="200"
-                    borderColor="border"
-                    overflowX="scroll"
-                  >
-                    <pre style={{ margin: 0 }}>
-                      <code>{JSON.stringify(actionData.product, null, 2)}</code>
-                    </pre>
-                  </Box>
-                )}
-              </BlockStack>
-            </Card>
-          </Layout.Section>
+  const {selectedResources, allResourcesSelected, handleSelectionChange,clearSelection} =
+  useIndexResourceState(loaderData);
+  const customizepaymentdata = loaderData?.nodes ? loaderData?.nodes : []
+
+
+  useEffect(()=>{
+    if(actionData){
+      setActive(false);setActiveToast(true)  ;
+
+      console.log('action data',actionData)
+      
+        const remainingPages = Math.ceil((customizepaymentdata.length - selectedResources.length) / 5);
+          if (remainingPages < currentPage) {
+            handlePageChange(remainingPages);
+          }
+      
+      clearSelection()
+    }    
+  },[actionData ])
+ 
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const startIndex = (currentPage - 1) * 5;
+  const endIndex = startIndex + 5;
+  const paginatedData = customizepaymentdata.slice(startIndex, endIndex);
+
+
+  const [active, setActive] = useState(false) 
+  const [activeToast, setActiveToast] = useState(false)
+
+  const resourceName = {
+    singular: 'Payment',
+    plural: 'Payments',
+  }
+
+  // handle pagination
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+ 
+//Handle Bulk Delete 
+  const handleDelete=()=>{
+      submit({data:JSON.stringify({ids:selectedResources})},{method:"DELETE"})
+   
+  }
+
+//Handle Bulk Status Change  
+  const handleStatusChange=(state)=>{      
+      submit(
+        {
+          data:JSON.stringify(
+            {
+              ids:selectedResources,
+              status:state
+            })
+      },
+      {method:"PUT"}
+      )
+    
+  }
+
+// Bulk action list for Index table
+  const promotedBulkActions = [
+    {
+      content: 'Active',
+      onAction:()=> handleStatusChange(true),
+    },
+    {
+      content:'Deactivate',
+      onAction:()=>handleStatusChange(false) ,
+    },
+    {
+      content: 'Delete',
+      onAction: handleDelete,
+    },
+  ];
+
+  // handle row selection
+  const toggleSelection = (itemId) => {
+    const newSelectedResources = selectedResources.includes(itemId)
+      ? selectedResources.filter((id) => id !== itemId)
+      : [...selectedResources, itemId];
+
+    handleSelectionChange(newSelectedResources);
+  };
+
+
+  return (   
+
+    <Page title="Dashboard">     
+
+      <Frame>
+        <Layout>          
           <Layout.Section variant="oneThird">
-            <BlockStack gap="500">
-              <Card>
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    App template specs
-                  </Text>
-                  <BlockStack gap="200">
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">
-                        Framework
+
+            <IndexTable
+              resourceName={resourceName}
+              itemCount={customizepaymentdata.length}
+              selectedItemsCount={allResourcesSelected ? 'All' : selectedResources.length}
+              onSelectionChange={handleSelectionChange}
+              hasZebraStriping
+              headings={[
+                { title: '#' },
+                { title: 'Title' },
+                { title: 'Status' },
+                { title: 'Action' },
+              ]}
+            promotedBulkActions={promotedBulkActions}
+            loading={isLoading}
+            >
+              {paginatedData.map(
+                (
+                  data,
+                  index,
+                ) => (
+                  <IndexTable.Row
+                    id={data.id}
+                    key={data.id}
+                    position={index}
+                    selected={selectedResources.includes(data.id)}
+                  onSelectionChange={() => toggleSelection(data.id)}
+                  // onClick={()=>Navigate(`/app/updatecustomize/${encodeURIComponent(data.id)}`)}
+                  >
+                    <IndexTable.Cell>
+                      <Text variant="bodyMd" fontWeight="bold" as="span">
+                        {startIndex+index+1}
                       </Text>
-                      <Link
-                        url="https://remix.run"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        Remix
-                      </Link>
-                    </InlineStack>
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">
-                        Database
-                      </Text>
-                      <Link
-                        url="https://www.prisma.io/"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        Prisma
-                      </Link>
-                    </InlineStack>
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">
-                        Interface
-                      </Text>
-                      <span>
-                        <Link
-                          url="https://polaris.shopify.com"
-                          target="_blank"
-                          removeUnderline
-                        >
-                          Polaris
-                        </Link>
-                        {", "}
-                        <Link
-                          url="https://shopify.dev/docs/apps/tools/app-bridge"
-                          target="_blank"
-                          removeUnderline
-                        >
-                          App Bridge
-                        </Link>
-                      </span>
-                    </InlineStack>
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">
-                        API
-                      </Text>
-                      <Link
-                        url="https://shopify.dev/docs/api/admin-graphql"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        GraphQL API
-                      </Link>
-                    </InlineStack>
-                  </BlockStack>
-                </BlockStack>
-              </Card>
-              <Card>
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    Next steps
-                  </Text>
-                  <List>
-                    <List.Item>
-                      Build an{" "}
-                      <Link
-                        url="https://shopify.dev/docs/apps/getting-started/build-app-example"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        {" "}
-                        example app
-                      </Link>{" "}
-                      to get started
-                    </List.Item>
-                    <List.Item>
-                      Explore Shopify’s API with{" "}
-                      <Link
-                        url="https://shopify.dev/docs/apps/tools/graphiql-admin-api"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        GraphiQL
-                      </Link>
-                    </List.Item>
-                  </List>
-                </BlockStack>
-              </Card>
-            </BlockStack>
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>{data.title}</IndexTable.Cell>
+                    <IndexTable.Cell>                      
+                        <Badge tone={data.enabled ? "success" : "enabled"} >
+                          {data.enabled ? " Active " : "Inactive"}
+                        </Badge>                      
+                    
+                    </IndexTable.Cell>
+                    <IndexTable.Cell>
+                      <Button variant="tertiary"  onClick={()=>Navigate(`/app/updatecustomize/${encodeURIComponent(data.id)}`)} icon={EditMajor} size="slim"></Button>                    </IndexTable.Cell>
+
+                  </IndexTable.Row>
+                ),
+              )}
+            </IndexTable>
+
+            <Pagination
+              hasNext={currentPage * 5 < customizepaymentdata.length}
+              hasPrevious={currentPage > 1}
+              onPrevious={() => handlePageChange(currentPage - 1)}
+              onNext={() => handlePageChange(currentPage + 1)}
+              type="table"
+              label={`Page ${currentPage} of ${Math.ceil(customizepaymentdata.length / 5)} `}
+            />
           </Layout.Section>
         </Layout>
-      </BlockStack>
+        <Layout>
+        </Layout>
+
+        <Modal
+        size="small"
+          open={active}
+          onClose={() => setActive(false)}
+          title="Status Confirmation"
+          primaryAction={{
+            content:isLoading?<Spinner  size="small"/> :"Change",
+            onAction: handleDelete
+
+          }}
+          secondaryActions={[{
+            content:  "Cancel",
+            onAction: () => setActive(false)
+          }]}
+        >
+          <Modal.Section>
+            
+              <Text variant="bodyLg" as="p">
+                Are You Sure to Delete this customize payment method...?
+              </Text>
+            
+          </Modal.Section>
+
+        </Modal>
+        {activeToast ? <Toast content={actionData?.msg} duration={2000} onDismiss={() => setActiveToast(false)} error={!actionData?.status} /> : null}
+
+      </Frame>
+
     </Page>
   );
 }
+

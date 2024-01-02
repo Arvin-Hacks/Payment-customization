@@ -44,3 +44,12 @@ model Shop {
   shop_owner     String?
   DomainsPaths   String?
 }
+
+model Customepaymentmethod {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  title              String?
+  status             Boolean?
+  methods            Json?
+  paymentCustomizeId String?
+  metafieldId        String?
+}

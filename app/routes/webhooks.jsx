@@ -1,5 +1,6 @@
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
+import { AddShopInfo } from "~/api/api.sever";
 
 export const action = async ({ request }) => {
   const { topic, shop, session, admin, payload } = await authenticate.webhook(
@@ -17,9 +18,13 @@ export const action = async ({ request }) => {
         await db.session.deleteMany({ where: { shop } });
       }
       break;
-      
+
     case "SHOP_UPDATE":
-      console.log('SHOP_UPDATE', payload)
+      console.log('SHOP_UPDATE_payload ', payload)
+
+      const response = await AddShopInfo(admin, session)
+      console.log("SHOP_UPDATE_DB ", response)
+
       break;
 
     case "CUSTOMERS_DATA_REQUEST":

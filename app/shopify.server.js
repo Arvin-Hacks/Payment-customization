@@ -31,10 +31,9 @@ const shopify = shopifyApp({
     },
   },
   hooks: {
-    afterAuth: async ({ session ,admin}) => {
-
-      const response=await AddShopInfo(admin,session)
-      console.log("afterAuth_response",response)
+    afterAuth: async ({ session, admin }) => {
+      const response = await AddShopInfo(admin, session)
+      console.log("afterAuth_response", response)
       shopify.registerWebhooks({ session });
     },
   },
@@ -141,12 +140,13 @@ const result = paymentMethod_order.map((method) => {
   };
 });
 
-const hidedata = ["Gift card", "(for testing) Bogus Gateway"]
+// const hidedata = ["Gift card", "(for testing) Bogus Gateway"]
+const hidedata = [""]
 
 const newArray = payment.filter(paymentMethod => hidedata.includes(paymentMethod.name)).map(({ id }) => ({ hide: { id: id } }));
 
 // console.log('ad', result)
-// console.log('result', newArray)
+console.log('result', newArray)
 
 // console.log('final', result.concat())
 // console.log(result)
@@ -158,9 +158,22 @@ const renamedPayment = payment
     const renamedName = renamedData ? renamedData.rename : name;
 
     return {
-      id,
-      name: renamedName,
+      rename: {
+        id,
+        name: renamedName,
+      }
     };
   })
 
+// console.log('final', newArray.concat(renamedPayment))
 // console.log(renamedPayment)
+
+
+const renamedData=[{name: '(for testing) Bogus Gateway', rename: '(for testing) Bogus Gateway b'},{name: 'Gift card', rename: 'Gift card '}]
+
+
+
+
+
+
+console.log('')

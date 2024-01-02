@@ -1,96 +1,58 @@
-import { BlockStack, Breadcrumbs, Button, Card, List, Grid, Icon, Page, Select, Text, TextField, ResourceItem, Thumbnail, Tooltip, Frame, Divider, Layout, Box, InlineGrid, Toast } from "@shopify/polaris";
-import { Link, useActionData, useSubmit, useNavigation, useNavigate } from '@remix-run/react'
+import { BlockStack, Breadcrumbs, Button, Card, List, Grid, Icon, Page, Select, Text, TextField, ResourceItem, Thumbnail, Toast, Tooltip, Frame, Divider, Layout, Box, InlineGrid } from "@shopify/polaris";
+import { Link, useActionData, useSubmit, useNavigation, useLocation, useLoaderData, useNavigate } from '@remix-run/react'
 import ComboBoxComponent from "~/Component/ComboBoxComponent";
 import { CameraMajor, HideMinor, ViewMinor, DragDropMajor } from '@shopify/polaris-icons'
 import { useEffect, useState, useTransition, useCallback } from "react";
 import { authenticate } from "~/shopify.server";
 import { getProperty, hasProperty } from 'dot-prop'
 
-import { CreateCustomizationPayment } from "~/api/api.sever";
-import TosterComponent from "~/Component/TosterComponent";
+import prisma from "~/db.server";
+import { UpdateCustomizationPaymentData } from "~/api/api.sever";
 
+export const loader = async ({ request, params }) => {
 
-let d = { a: { tet: 'b' } }
-
-console.log(getProperty(d, d.a))
-
-
-export const loader = async ({ request }) => {  
     const { admin, session } = await authenticate.admin(request)
+    try {
+        const response = await prisma.customepaymentmethod.findMany({ where: { paymentCustomizeId: params.id } })
+        console.log('response', response)
 
-    return {}
+        return response[0]
+    } catch (error) {
+        console.log('error', error)
+        return error
+    }
+
 };
 
 
-
-export const action = async ({ request }) => {
-    const { admin } = await authenticate.admin(request)
+export const action = async ({ request, params }) => {
+    const { admin, session } = await authenticate.admin(request)
+    // const functionId = "e719473b-507b-4f03-87f6-6564b7812960"
     const body = await request.formData();
-
     const payData = JSON.parse(body.get('data'))
 
-    console.log('payData', payData)
-    // return null
-    const JsonResponse = await CreateCustomizationPayment(admin, payData)
+    console.log('payData', payData)       // return null
 
-    return JsonResponse;
+    const response = await UpdateCustomizationPaymentData(admin, params.id, payData)
+    return response
+};
 
-}
 
 export default function () {
 
     const submit = useSubmit()
     const actionData = useActionData()
-    const nav = useNavigation();
+    const loaderData = useLoaderData()
     const Navigate = useNavigate()
+    const nav = useNavigation();
+    const [activeToast, setActiveToast] = useState(false)
 
     const isLoading =
-        ["loading", "submitting"].includes(nav.state) && nav.formMethod === "POST";
-    const [activeToast, setActiveToast] = useState(false)
-    const [title, setTitle] = useState('')
+        ["loading", "submitting"].includes(nav.state) && nav.formMethod === "PUT";
+    const [title, setTitle] = useState(loaderData.title)
 
-
-    useEffect(() => {
-        if (actionData) {
-            console.log('action Datta', actionData)
-            setActiveToast(true);
-            actionData?.status ? setTimeout(() => { Navigate('/app/') }, 500) : null;
-        }
-
-    }, [actionData])
-
-
-    const [payment, setPayment] = useState([
-        // {
-        //     "id": "gid://shopify/PaymentCustomizationPaymentMethod/0",
-        //     "name": "Gift card"
-        // },
-        {
-            "id": "gid://shopify/PaymentCustomizationPaymentMethod/1",
-            "name": "(for testing) Bogus Gateway"
-        },
-        {
-            "id": "gid://shopify/PaymentCustomizationPaymentMethod/2",
-            "name": "Deferred"
-        },
-        {
-            "id": "gid://shopify/PaymentCustomizationPaymentMethod/3",
-            "name": "Cash on Delivery (COD)"
-        },
-        {
-            "id": "gid://shopify/PaymentCustomizationPaymentMethod/4",
-            "name": "Money Order"
-        },
-        {
-            "id": "gid://shopify/PaymentCustomizationPaymentMethod/5",
-            "name": "Bank Deposit"
-        }
-    ]);
-
-
-
-    const [paymentMethods, setPaymentMethods] = useState(payment.map(({ name }, index) => ({ name, value: name, hide: false, position: index + 1 })));
-
+    console.log('loaderdata', loaderData)
+    const [paymentMethods, setPaymentMethods] = useState(loaderData.methods)
 
     // Handle input for Renaming a payment options
     const handleInputChange = (newValue, methodname) => {
@@ -100,18 +62,19 @@ export default function () {
                 const { hide, name, position } = method
                 return name === methodname ? { name, hide, value: newValue, oldValue: name, position } : method
             })
-        )
+        );
     };
 
-    // Handle Hide and Show payment options
+    // handle Hide and Show payment options
     const toggleDisabled = (methodname) => {
 
-        let i = 1;
+        let i = 1
 
         setPaymentMethods((prevMethods) =>
             prevMethods.map((menthod) => menthod.name === methodname ? { ...menthod, hide: !menthod.hide } : menthod
             ).map((method) => !method.hide ? { ...method, position: i++ } : method)
         );
+
     };
 
     // Handle input for positioning payment options
@@ -127,64 +90,74 @@ export default function () {
             );
         } else {
             alert('Invalid position value:', newindex);
+
         }
 
     }
 
     // Handle data before Submitting to action
+
     const hadndleFinalData = () => {
-        if (title) {
-            const hideDtata = []
-            const RenamedData = []
-            const reorderData = []
 
-            paymentMethods.forEach(item => {
-                console.log('first', item,)
-                if (hasProperty(item, 'oldValue')) {
-                    RenamedData.push({
-                        name: item.name,
-                        rename: item.value
-                    })
+        const hideDtata = []
+        const RenamedData = []
+        const reorderData = []
+
+        paymentMethods.forEach(item => {
+            console.log('first', item,)
+            if (hasProperty(item, 'oldValue')) {
+                RenamedData.push({
+                    name: item.name,
+                    rename: item.value
+                })
+            }
+            if (item.hide) {
+                hideDtata.push(item.name)
+            } else {
+                reorderData.push({
+                    index: parseInt(item.position - 1),
+                    name: item.name
+                })
+            }
+        });
+
+        console.warn('renamed data ', RenamedData)
+        console.warn('hideDtata ', hideDtata)
+        console.warn('reorderData ', reorderData)
+
+
+
+        submit({
+            data: JSON.stringify(
+                {
+                    renamedPayment: RenamedData,
+                    hideDtata: hideDtata,
+                    reorderData: reorderData,
+                    title: title,
+                    metafieldId: loaderData.metafieldId
                 }
-                if (item.hide) {
-                    hideDtata.push(item.name)
-                } else {
-                    reorderData.push({
-                        index: parseInt(item.position - 1),
-                        name: item.name
-                    })
-                }
-            });
-
-            console.warn('renamed data ', RenamedData)
-            console.warn('hideDtata ', hideDtata)
-            console.warn('reorderData ', reorderData)
-
-            submit({
-                data: JSON.stringify(
-                    {
-                        renamedPayment: RenamedData,
-                        hideDtata: hideDtata,
-                        reorderData: reorderData,
-                        title: title,
-                        paymentMethods: paymentMethods
-                    }
-                )
-            }, { method: "POST" }
             )
-
-        } else {
-            alert("Please Provide title",)
-        }
+        }, { method: "PUT" })
     }
 
+    useEffect(() => {
+        if (actionData) {
+            setActiveToast(true)
+            console.warn("actionData", actionData)
+            actionData?.status ? setTimeout(() => { Navigate('/app/') }, 500) : null;
+        }
+
+    }, [actionData])
+
     return (
-        <Page title="Add New Payment Method" primaryAction={<Button onClick={hadndleFinalData} tone="success" variant="primary" loading={isLoading}>Add Payment</Button>}>
+        <Page title="Update PaymentCustomization " >
             <Frame>
-                {/* <Breadcrumbs backAction={{ url: '/app/', content: 'Back to Dashboard' }} >Hide payment menthod</Breadcrumbs> */}
+
+                <Breadcrumbs backAction={{ url: '/app/', content: 'Back to Dashboard' }} >Hide payment menthod</Breadcrumbs>
+                <br />
                 <Card>
                     <BlockStack gap={'300'}>
-                        <TextField label={<Text as="h4" fontWeight="medium">Title</Text>} value={title} onChange={(value) => setTitle(value)} variant="inherit" monospaced error={!title ? true : false} />
+                        <TextField label={<Text as="h4" fontWeight="medium">Title</Text>} value={title} onChange={(value) => setTitle(value)} variant="inherit" monospaced X />
 
                         <Divider borderColor="border-inverse" borderWidth="050" />
 
@@ -207,6 +180,7 @@ export default function () {
                                                 onClick={() => { toggleDisabled(name) }}
                                             ></Button>
                                         }
+                                    // connectedLeft={<TextField autoComplete="off" inputMode="numeric" monospaced value={ position} />}
                                     />
                                 ))}
                             </Layout.Section>
@@ -265,15 +239,13 @@ export default function () {
 
                     </BlockStack>
                     <br />
-                    <Button onClick={hadndleFinalData} tone="success" variant="primary" loading={isLoading}>Add Payment</Button>
-                </Card>
 
-                <p>Status:{activeToast ? 'ok' : 'stand by'}</p>
+                    <Button onClick={hadndleFinalData} tone="success" variant="primary" loading={isLoading}>Save</Button>
+                </Card>
                 {activeToast ? <Toast content={actionData?.msg} duration={2000} onDismiss={() => setActiveToast(false)} error={!actionData?.status} /> : null}
 
-                {/* {activeToast ? <TosterComponent message={actionData?.msg} type={actionData?.status} /> : null} */}
             </Frame>
         </Page >
-    )
+    );
 
 }
