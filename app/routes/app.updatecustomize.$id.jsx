@@ -1,13 +1,14 @@
-import { BlockStack, Breadcrumbs, Button, Card, List, Grid, Icon, Page, Select, Text, TextField, ResourceItem, Thumbnail, Toast, Tooltip, Frame, Divider, Layout, Box, InlineGrid } from "@shopify/polaris";
-import { Link, useActionData, useSubmit, useNavigation, useLocation, useLoaderData, useNavigate } from '@remix-run/react'
-import ComboBoxComponent from "~/Component/ComboBoxComponent";
-import { CameraMajor, HideMinor, ViewMinor, DragDropMajor } from '@shopify/polaris-icons'
-import { useEffect, useState, useTransition, useCallback } from "react";
+import { BlockStack, Breadcrumbs, Button, Card, List, Page, Text, TextField, Toast, Frame, Divider, Layout, Box, InlineGrid } from "@shopify/polaris";
+import { useActionData, useSubmit, useNavigation, useLoaderData, useNavigate } from '@remix-run/react'
+import { HideMinor, ViewMinor } from '@shopify/polaris-icons'
+import { useEffect, useState } from "react";
 import { authenticate } from "~/shopify.server";
-import { getProperty, hasProperty } from 'dot-prop'
+import { hasProperty } from 'dot-prop'
 
 import prisma from "~/db.server";
 import { UpdateCustomizationPaymentData } from "~/api/api.sever";
+
+
 
 export const loader = async ({ request, params }) => {
 
@@ -50,6 +51,7 @@ export default function () {
     const isLoading =
         ["loading", "submitting"].includes(nav.state) && nav.formMethod === "PUT";
     const [title, setTitle] = useState(loaderData.title)
+    const [error, setError] = useState('')
 
     console.log('loaderdata', loaderData)
     const [paymentMethods, setPaymentMethods] = useState(loaderData.methods)
@@ -89,7 +91,7 @@ export default function () {
                 )
             );
         } else {
-            alert('Invalid position value:', newindex);
+            setError('Invalid position value');
 
         }
 
@@ -98,59 +100,67 @@ export default function () {
     // Handle data before Submitting to action
 
     const hadndleFinalData = () => {
+        if (title) {
+            const hideDtata = []
+            const RenamedData = []
+            const reorderData = []
 
-        const hideDtata = []
-        const RenamedData = []
-        const reorderData = []
-
-        paymentMethods.forEach(item => {
-            console.log('first', item,)
-            if (hasProperty(item, 'oldValue')) {
-                RenamedData.push({
-                    name: item.name,
-                    rename: item.value
-                })
-            }
-            if (item.hide) {
-                hideDtata.push(item.name)
-            } else {
-                reorderData.push({
-                    index: parseInt(item.position - 1),
-                    name: item.name
-                })
-            }
-        });
-
-        console.warn('renamed data ', RenamedData)
-        console.warn('hideDtata ', hideDtata)
-        console.warn('reorderData ', reorderData)
-
-
-
-        submit({
-            data: JSON.stringify(
-                {
-                    renamedPayment: RenamedData,
-                    hideDtata: hideDtata,
-                    reorderData: reorderData,
-                    title: title,
-                    metafieldId: loaderData.metafieldId
+            paymentMethods.forEach(item => {
+                console.log('first', item,)
+                if (hasProperty(item, 'oldValue')) {
+                    RenamedData.push({
+                        name: item.name,
+                        rename: item.value
+                    })
                 }
-            )
-        }, { method: "PUT" })
+                if (item.hide) {
+                    hideDtata.push(item.name)
+                } else {
+                    reorderData.push({
+                        index: parseInt(item.position - 1),
+                        name: item.name
+                    })
+                }
+            });
+
+            console.warn('renamed data ', RenamedData)
+            console.warn('hideDtata ', hideDtata)
+            console.warn('reorderData ', reorderData)
+
+            const validatedata = checkFieldsValidityy(RenamedData, reorderData)
+
+            console.log("validatedata", validatedata)
+            if (validatedata) {
+                submit({
+                    data: JSON.stringify(
+                        {
+                            renamedPayment: RenamedData,
+                            hideDtata: hideDtata,
+                            reorderData: reorderData,
+                            title: title,
+                            paymentMethods: paymentMethods
+                        }
+                    )
+                }, { method: "POST" }
+                )
+            } else { setError("Please Provide valid Details") }
+
+        } else {
+            setError("Please Provide title")
+        }
     }
 
     useEffect(() => {
         if (actionData) {
             setActiveToast(true)
             console.warn("actionData", actionData)
-            actionData?.status ? setTimeout(() => { Navigate('/app/') }, 500) : null;
+            actionData?.status ? setTimeout(() => { Navigate('/app/') }, 500) : setError(actionData?.error);
         }
 
     }, [actionData])
 
     return (
-        <Page title="Update PaymentCustomization " >
+        <Page title="Update Payment Customization" >
             <Frame>
 
                 <Breadcrumbs backAction={{ url: '/app/', content: 'Back to Dashboard' }} >Hide payment menthod</Breadcrumbs>
@@ -168,7 +178,7 @@ export default function () {
                                         key={name}
                                         label='Method'
                                         value={value}
-                                        placeholder="Test"
+                                        // placeholder="Test"
                                         disabled={hide}
                                         // readOnly
                                         autoComplete="off"
@@ -249,3 +259,15 @@ export default function () {
     );
 
 }
+
+// Check for non-null values in the "rename" field and duplicates in the "position" field
+const checkFieldsValidityy = (array1, array2) => {
+
+    const hasNullRename = array1.some(item => item.rename === null || item.rename === '');
+
+    const hasNoDuplicates = array2.every(
+        (item, index, arr) => arr.findIndex((el) => el.index === item.index) === index
+    );
+    return !hasNullRename && hasNoDuplicates;
+}
+

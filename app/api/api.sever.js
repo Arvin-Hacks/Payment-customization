@@ -156,11 +156,11 @@ export const CreateCustomizationPayment = async (admin, payData) => {
 
         } else {
             console.log('JsonResponse', JsonResponse)
-            return json({ data_error: JsonResponse?.data?.customizeCreacte?.paymentCustomization?.userErrors, status: false, msg: 'something went wrongggggg' })
+            return json({ error: JsonResponse?.data?.customizeCreacte?.userErrors[0].message, status: false, msg: 'something went wrongggggg  ' })
         }
     } catch (error) {
         console.log('CreateCustomizationPayment', error)
-        return json({ data_error: error, status: false, msg: 'something went wrongggggg' })
+        return json({ error: error, status: false, msg: 'something went wrongggggg 2' })
 
     }
 
@@ -170,7 +170,7 @@ export const UpdateCustomizationPaymentData = async (admin, id, payData) => {
     try {
         const functionId = await GetFunctionIdByName(admin, "payment_customization")
 
-        const Db_response = await UpadeteCustomizationPaymentDb(id,payData)
+        const Db_response = await UpadeteCustomizationPaymentDb(id, payData)
 
         const responses = await admin.graphql(
             `#graphql
@@ -221,11 +221,13 @@ export const UpdateCustomizationPaymentData = async (admin, id, payData) => {
         if (JsonResponse?.data.customizeupdate.paymentCustomization) {
             return json({ data: JsonResponse, msg: 'Upadeted Successfully', status: true })
         } else {
-            return json({ data: JsonResponse, status: false, msg: 'Something went Wrong' })
+            return json({ error: JsonResponse?.data?.customizeCreacte?.userErrors[0].message, status: false, msg: 'something went wrong  ' })
+
         }
     } catch (error) {
         console.log('error', error)
-        return json({ data: error, status: false, msg: 'Something went Wrong' })
+        return json({ error: error, status: false, msg: 'something went wrongg' })
+
 
     }
 }

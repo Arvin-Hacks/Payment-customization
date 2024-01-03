@@ -29,7 +29,7 @@ export const loader = async ({ request }) => {
 
   try {
     const data=await GetCustomizationListDb()
-    console.log('response',data)
+    // console.log('response',data)
     // return data
   } catch (error) {
     console.log('GetCustomizationListDb loader error',error)
@@ -49,7 +49,7 @@ export const loader = async ({ request }) => {
         }`
   )
   const data = await customPaymentData.json()
-  console.log("customPaymentData", data.data.paymentCustomizations.nodes)
+  // console.log("customPaymentData", data.data.paymentCustomizations.nodes)
 
   return json({
     nodes: data.data.paymentCustomizations.nodes,
@@ -154,7 +154,7 @@ export default function Index() {
 
       console.log('action data',actionData)
       
-        const remainingPages = Math.ceil((customizepaymentdata.length - selectedResources.length) / 5);
+        const remainingPages = Math.ceil((customizepaymentdata.length - selectedResources.length) / 10);
           if (remainingPages < currentPage) {
             handlePageChange(remainingPages);
           }
@@ -165,8 +165,8 @@ export default function Index() {
  
 
   const [currentPage, setCurrentPage] = useState(1);
-  const startIndex = (currentPage - 1) * 5;
-  const endIndex = startIndex + 5;
+  const startIndex = (currentPage - 1) * 10;
+  const endIndex = startIndex + 10;
   const paginatedData = customizepaymentdata.slice(startIndex, endIndex);
 
 
@@ -251,7 +251,7 @@ export default function Index() {
                 { title: 'Action' },
               ]}
             promotedBulkActions={promotedBulkActions}
-            loading={isLoading}
+            loading={isLoading}            
             >
               {paginatedData.map(
                 (
@@ -287,12 +287,12 @@ export default function Index() {
             </IndexTable>
 
             <Pagination
-              hasNext={currentPage * 5 < customizepaymentdata.length}
+              hasNext={currentPage * 10 < customizepaymentdata.length}
               hasPrevious={currentPage > 1}
               onPrevious={() => handlePageChange(currentPage - 1)}
               onNext={() => handlePageChange(currentPage + 1)}
               type="table"
-              label={`Page ${currentPage} of ${Math.ceil(customizepaymentdata.length / 5)} `}
+              label={`Page ${currentPage} of ${Math.ceil(customizepaymentdata.length / 10)} `}
             />
           </Layout.Section>
         </Layout>

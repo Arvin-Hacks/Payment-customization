@@ -176,4 +176,34 @@ const renamedData=[{name: '(for testing) Bogus Gateway', rename: '(for testing) 
 
 
 
-console.log('')
+// console.log('')
+
+
+const array2 = [
+  {
+    "index": 0,
+    "name": "(for testing) Bogus Gateway"
+  },
+  {
+    "index": 1,
+    "name": "Deferred"
+  },
+  {
+    "index": 2,
+    "name": "Cash on Delivery (COD)"
+  },
+  {
+    "index": 3,
+    "name": "Money Order"
+  },
+  {
+    "index": 4,
+    "name": "Bank Deposit"
+  }
+];
+
+const hasNoDuplicates = array2.every(
+  (item, index, arr) => arr.findIndex((el) => el.index === item.index) === index
+);
+
+console.log(hasNoDuplicates)

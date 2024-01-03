@@ -1,4 +1,4 @@
-import { BlockStack, Breadcrumbs, Button, Card, List, Grid, Icon, Page, Select, Text, TextField, ResourceItem, Thumbnail, Tooltip, Frame, Divider, Layout, Box, InlineGrid, Toast } from "@shopify/polaris";
+import { BlockStack, Breadcrumbs, Button, Card, List, Grid, Icon, Page, Select, Text, TextField, ResourceItem, Thumbnail, Tooltip, Frame, Divider, Layout, Box, InlineGrid, Toast, Banner } from "@shopify/polaris";
 import { Link, useActionData, useSubmit, useNavigation, useNavigate } from '@remix-run/react'
 import ComboBoxComponent from "~/Component/ComboBoxComponent";
 import { CameraMajor, HideMinor, ViewMinor, DragDropMajor } from '@shopify/polaris-icons'
@@ -15,7 +15,7 @@ let d = { a: { tet: 'b' } }
 console.log(getProperty(d, d.a))
 
 
-export const loader = async ({ request }) => {  
+export const loader = async ({ request }) => {
     const { admin, session } = await authenticate.admin(request)
 
     return {}
@@ -48,13 +48,14 @@ export default function () {
         ["loading", "submitting"].includes(nav.state) && nav.formMethod === "POST";
     const [activeToast, setActiveToast] = useState(false)
     const [title, setTitle] = useState('')
+    const [error, setError] = useState('')
 
 
     useEffect(() => {
         if (actionData) {
             console.log('action Datta', actionData)
             setActiveToast(true);
-            actionData?.status ? setTimeout(() => { Navigate('/app/') }, 500) : null;
+            actionData?.status ? setTimeout(() => { Navigate('/app/') }, 500) : setError(actionData?.error);
         }
 
     }, [actionData])
@@ -126,7 +127,7 @@ export default function () {
                 )
             );
         } else {
-            alert('Invalid position value:', newindex);
+            setError('Invalid position value');
         }
 
     }
@@ -160,31 +161,43 @@ export default function () {
             console.warn('hideDtata ', hideDtata)
             console.warn('reorderData ', reorderData)
 
-            submit({
-                data: JSON.stringify(
-                    {
-                        renamedPayment: RenamedData,
-                        hideDtata: hideDtata,
-                        reorderData: reorderData,
-                        title: title,
-                        paymentMethods: paymentMethods
-                    }
+            const validatedata = checkFieldsValidityy(RenamedData, reorderData)
+
+            console.log("validatedata", validatedata)
+            if (validatedata) {
+                submit({
+                    data: JSON.stringify(
+                        {
+                            renamedPayment: RenamedData,
+                            hideDtata: hideDtata,
+                            reorderData: reorderData,
+                            title: title,
+                            paymentMethods: paymentMethods
+                        }
+                    )
+                }, { method: "POST" }
                 )
-            }, { method: "POST" }
-            )
+            } else { setError("Please Provide valid Details") }
 
         } else {
-            alert("Please Provide title",)
+            setError("Please Provide title")
         }
     }
 
+
     return (
-        <Page title="Add New Payment Method" primaryAction={<Button onClick={hadndleFinalData} tone="success" variant="primary" loading={isLoading}>Add Payment</Button>}>
+        <Page title="New Payment Customization" primaryAction={<Button onClick={hadndleFinalData} tone="success" variant="primary" loading={isLoading}>Add Payment</Button>}>
             <Frame>
+                {error ?
+                    <Banner tone="critical" title="Error creating new payment method">
+                        <Text tone="magic-subdued">{error}</Text>
+                    </Banner> : null
+                }
+                <br />
                 {/* <Breadcrumbs backAction={{ url: '/app/', content: 'Back to Dashboard' }} >Hide payment menthod</Breadcrumbs> */}
                 <Card>
                     <BlockStack gap={'300'}>
-                        <TextField label={<Text as="h4" fontWeight="medium">Title</Text>} value={title} onChange={(value) => setTitle(value)} variant="inherit" monospaced error={!title ? true : false} />
+                        <TextField label={<Text as="h4" fontWeight="medium">Title</Text>} value={title} onChange={(value) => setTitle(value)} variant="inherit" monospaced error={title ? false : true} />
 
                         <Divider borderColor="border-inverse" borderWidth="050" />
 
@@ -276,4 +289,15 @@ export default function () {
         </Page >
     )
 
+}
+// Check for non-null values in the "rename" field and duplicates in the "position" field
+const checkFieldsValidityy = (array1, array2) => {
+
+
+    const hasNullRename = array1.some(item => item.rename === null || item.rename === '');
+
+    const hasNoDuplicates = array2.every(
+        (item, index, arr) => arr.findIndex((el) => el.index === item.index) === index
+    );
+    return !hasNullRename && hasNoDuplicates;
 }
